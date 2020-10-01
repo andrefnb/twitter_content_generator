@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
 from keras.models import Sequential
@@ -8,8 +7,8 @@ from keras.layers import Dense
 from keras.layers import Dropout
 from keras.layers import LSTM
 from keras.utils import np_utils
-#from keras.utils.vis_utils import plot_model
 from keras.callbacks import ModelCheckpoint, EarlyStopping
+import tensorflow as tf
 
 # Directories
 DATA_DIR = "data"
@@ -20,6 +19,7 @@ FILE_MODEL_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_model.sav"
 DATA_FILE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}.txt"
 TWEETS_FILE_NAME = f"{DATA_DIR}/tweets_storage.txt"
 ERRORS_PLOT_IMAGE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_errors.jpg"
+CHECKPOINT_TO_IMPORT = f"{CHECKPOINT_DIR}/ckpt_1"
 # Training variables
 NR_OF_TRAINING_CHARACTERS = 1000#500000
 NR_UNITS = 300
@@ -153,10 +153,10 @@ def train_model(X_modified, Y_modified, load_checkpoint=False):
 
     # Checkpoint loading
     if load_checkpoint:
-        model.load_weights(CHECKPOINT_DIR)
+        model.load_weights(CHECKPOINT_TO_IMPORT)
 
     # Checkpointing
-    checkpoint_prefix = os.path.join(CHECKPOINT_DIR, "weights.{epoch:02d}_{val_loss:.2f}.hdf5")
+    checkpoint_prefix = os.path.join(CHECKPOINT_DIR, "ckpt_{epoch}")
     checkpoint = ModelCheckpoint(checkpoint_prefix, monitor='val_loss', verbose=1, save_best_only=True, mode='max', save_weights_only=False)
 
     # Early Stopping
