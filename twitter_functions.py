@@ -22,7 +22,7 @@ def get_tweets(api):
 
 
 def get_store_tweets(api):
-    filename = "tweets_storage.txt"
+    filename = content_creator_model.TWEETS_FILE_NAME
     my_file = Path(filename)
 
     file = open(filename, 'a')

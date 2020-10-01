@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import pickle
@@ -10,12 +11,20 @@ from keras.utils import np_utils
 #from keras.utils.vis_utils import plot_model
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 
-test_file_name = "the_way_of_kings"
-FILE_MODEL_NAME = test_file_name + "_model.sav"
-DATA_FILE_NAME = test_file_name + ".txt"
-TWEETS_FILE_NAME = "tweets_storage.txt"
-NR_OF_TRAINING_CHARACTERS = 500000
+# Directories
+DATA_DIR = "data"
+CHECKPOINT_DIR = f"{DATA_DIR}/training_checkpoints"
+# File names
+TEST_FILE_NAME = "the_way_of_kings"
+FILE_MODEL_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_model.sav"
+DATA_FILE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}.txt"
+TWEETS_FILE_NAME = f"{DATA_DIR}/tweets_storage.txt"
+ERRORS_PLOT_IMAGE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_errors.jpg"
+# Training variables
+NR_OF_TRAINING_CHARACTERS = 1000#500000
 NR_UNITS = 300
+EPOCH_NUMBER = 5
+
 
 def save_model(filename, model):
     pickle.dump(model, open(filename, 'wb'))
@@ -30,8 +39,7 @@ def load_model(filename):
 def load_data():
 
     # load text
-    filename = DATA_FILE_NAME
-    text = (open(filename).read())
+    text = (open(DATA_FILE_NAME).read())
 
     # tweets_file_name = TWEETS_FILE_NAME
     # text = (open(tweets_file_name).read()) + "\n" + text
@@ -110,6 +118,27 @@ def generate_content(model, nr_chars):
     return content
 
 
+def get_history_errors(history):
+    history_dict = history.history
+    train_error = history_dict['loss']
+    val_error = history_dict['val_loss']
+    # Reconverting to currency
+    train_errors = train_error  # [number ** 0.5 * std_Ys for number in train_error]
+    val_errors = val_error  # [number ** 0.5 * std_Ys for number in val_error]
+    return train_errors, val_errors
+
+
+def plot_errors(train_errors, val_errors):
+    f, ax = plt.subplots(1)
+    ax.plot(train_errors, 'b', label='Training loss')
+    ax.plot(val_errors, 'r', label='Validation loss')
+    ax.set_ylim(ymin=0)
+    f.set_size_inches(18.5, 10.5)
+    ax.legend()
+    # plt.show()
+    f.savefig(ERRORS_PLOT_IMAGE_NAME)
+
+
 def train_model(X_modified, Y_modified, load_checkpoint=False):
 
     # defining the LSTM model
@@ -120,49 +149,29 @@ def train_model(X_modified, Y_modified, load_checkpoint=False):
     model.add(Dropout(0.2))
     model.add(Dense(Y_modified.shape[1], activation='softmax'))
 
-    # Checkpoint loading
-    checkpoint_path = test_file_name + "_weights_improvement.hdf5"
-    if load_checkpoint:
-        model.load_weights(checkpoint_path)
-
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-    epoch_number = 16
+    # Checkpoint loading
+    if load_checkpoint:
+        model.load_weights(CHECKPOINT_DIR)
 
     # Checkpointing
-    checkpoint = ModelCheckpoint(checkpoint_path, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max', save_weights_only=False)
+    checkpoint_prefix = os.path.join(CHECKPOINT_DIR, "weights.{epoch:02d}_{val_loss:.2f}.hdf5")
+    checkpoint = ModelCheckpoint(checkpoint_prefix, monitor='val_loss', verbose=1, save_best_only=True, mode='max', save_weights_only=False)
 
     # Early Stopping
     early_stop = EarlyStopping(monitor='val_loss', patience=10)
 
     callbacks_list = [checkpoint, early_stop]
 
-    # Create model's image
-    #+
-    # plot_model(model, to_file=test_file_name + "_model.png", show_shapes=True, show_layer_names=True)
-
     # fitting the model
-    history = model.fit(X_modified, Y_modified, epochs=epoch_number, batch_size=16, validation_split=0.33, callbacks=callbacks_list)
+    history = model.fit(X_modified, Y_modified, epochs=EPOCH_NUMBER, batch_size=16, validation_split=0.33, callbacks=callbacks_list)
 
     filename = FILE_MODEL_NAME
     save_model(filename, model)
 
-    # Plot error images
-
-    # Get history losses
-    history_dict = history.history
-    train_error = history_dict['loss']
-    val_error = history_dict['val_loss']
-    # Reconverting to currency
-    train_errors = train_error#[number ** 0.5 * std_Ys for number in train_error]
-    val_errors = val_error#[number ** 0.5 * std_Ys for number in val_error]
-
+    # Get history losses and plot errors
+    train_errors, val_errors = get_history_errors(history)
     # Plot errors
-    f, ax = plt.subplots(1)
-    ax.plot(train_errors, 'b', label='Training loss')
-    ax.plot(val_errors, 'r', label='Validation loss')
-    ax.set_ylim(ymin=0)
-    f.set_size_inches(18.5, 10.5)
-    ax.legend()
-    plt.show()
-    f.savefig(test_file_name + '_errors.jpg')
+    plot_errors(train_errors, val_errors)
+
