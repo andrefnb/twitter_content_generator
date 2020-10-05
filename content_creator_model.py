@@ -15,18 +15,19 @@ DATA_DIR = "data"
 CHECKPOINT_DIR = f"{DATA_DIR}/training_checkpoints"
 # File names
 TEST_FILE_NAME = "the_way_of_kings"
-FILE_MODEL_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_model.sav"
+FILE_MODEL_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_model_1.sav"
 DATA_FILE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}.txt"
 TWEETS_FILE_NAME = f"{DATA_DIR}/tweets_storage.txt"
 ERRORS_PLOT_IMAGE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_errors.jpg"
 CHECKPOINT_TO_IMPORT = f"{CHECKPOINT_DIR}/ckpt_1"
 # Training variables
-NR_OF_TRAINING_CHARACTERS = 1000#500000
-NR_UNITS = 300
+NR_OF_TRAINING_CHARACTERS = 500000
+NR_UNITS = 256
 DROPOUT_RATE = 0.2
-EPOCH_NUMBER = 5
-BATCH_SIZE = 16
+EPOCH_NUMBER = 50
+BATCH_SIZE = 64
 VALIDATION_SPLIT = 0.33
+LOADING_SEQUENCE_LENGTH = 100
 
 
 def save_model(filename, model):
@@ -44,77 +45,73 @@ def load_data():
     # load text
     text = (open(DATA_FILE_NAME).read())
 
+    # USE TWEETS?
     # tweets_file_name = TWEETS_FILE_NAME
     # text = (open(tweets_file_name).read()) + "\n" + text
 
-    text = text[0:NR_OF_TRAINING_CHARACTERS]
+    raw_text = text[0:NR_OF_TRAINING_CHARACTERS]
     # text = text.lower()
     # print(text)
 
-    # mapping characters with integers
-    unique_chars = sorted(list(set(text)))
+    # create mapping of unique chars to integers, and a reverse mapping
+    unique_chars = sorted(list(set(raw_text)))
+    char_to_int = dict((c, i) for i, c in enumerate(unique_chars))
+    int_to_char = dict((i, c) for i, c in enumerate(unique_chars))
 
-    char_to_int = {}
-    int_to_char = {}
+    n_chars = len(raw_text)
+    n_vocab = len(unique_chars)
+    print("Total Characters: ", n_chars)
+    print("Total Vocab: ", n_vocab)
 
-    for i, c in enumerate(unique_chars):
-        char_to_int.update({c: i})
-        int_to_char.update({i: c})
+    # prepare the dataset of input to output pairs encoded as integers
+    dataX = []
+    dataY = []
 
-    # print(char_to_int)
-    # print(int_to_char)
+    for i in range(0, n_chars - LOADING_SEQUENCE_LENGTH, 1):
+        seq_in = text[i:i + LOADING_SEQUENCE_LENGTH]
+        seq_out = text[i + LOADING_SEQUENCE_LENGTH]
+        dataX.append([char_to_int[char] for char in seq_in])
+        dataY.append(char_to_int[seq_out])
 
-    # preparing input and output dataset
-    X = []
-    Y = []
-    number_period = 100
-
-    for i in range(0, len(text) - number_period, 1):
-        sequence = text[i:i + number_period]
-        label = text[i + number_period]
-        X.append([char_to_int[char] for char in sequence])
-        Y.append(char_to_int[label])
-
-    # print("X", X)
-    # print("Y", Y)
-
+    n_patterns = len(dataX)
+    print("Total Patterns: ", n_patterns)
     # reshaping, normalizing and one hot encoding
-    X_modified = np.reshape(X, (len(X), number_period, 1))
-    # print("X_modified", X_modified)
-    X_modified = X_modified / float(len(unique_chars))
-    # print("X_modified", X_modified)
-    Y_modified = np_utils.to_categorical(Y)
-    # print("Y_modified", Y_modified)
+    x_modified = np.reshape(dataX, (n_patterns, LOADING_SEQUENCE_LENGTH, 1))
+    # print("x_modified", x_modified)
+    x_modified = x_modified / float(n_vocab)
+    # print("x_modified", x_modified)
+    y_modified = np_utils.to_categorical(dataY)
+    # print("y_modified", y_modified)
 
-    return unique_chars, int_to_char, char_to_int, X, Y, X_modified, Y_modified
+    return unique_chars, int_to_char, char_to_int, dataX, dataY, x_modified, y_modified
 
 
 def generate_content(model, nr_chars):
 
-    unique_chars, int_to_char, char_to_int, X, Y, X_modified, Y_modified = load_data()
+    unique_chars, int_to_char, char_to_int, dataX, dataY, x_modified, y_modified = load_data()
 
     # picking a random seed
-    start_index = np.random.randint(0, len(X) - 2)
-    new_string = X[start_index]
-    s1 = "this is a test. please give me a better output thi"
-    for i in range(0, len(s1)):
-        new_string[i] = char_to_int[s1[i]]
+    # pick a random seed
+    start = np.random.randint(0, len(dataX) - 1)
+    content_indices = dataX[start]
     content = ""
+    print("Seed:")
+    print("\"", ''.join([int_to_char[value] for value in content_indices]), "\"")
 
     # generating characters
     for i in range(nr_chars):
-        x = np.reshape(new_string, (1, len(new_string), 1))
+        x = np.reshape(content_indices, (1, len(content_indices), 1))
         x = x / float(len(unique_chars))
 
         # predicting
         pred_index = np.argmax(model.predict(x, verbose=0))
         char_out = int_to_char[pred_index]
-        print("char_out ", char_out)
+        print("Char out: ", char_out)
         # seq_in = [int_to_char[value] for value in new_string]
         # print("seq_in ", seq_in)
 
-        new_string.append(pred_index)
-        new_string = new_string[1:len(new_string)]
+        content_indices.append(pred_index)
+        content_indices = content_indices[1:len(content_indices)]
 
         content += char_out
 
@@ -142,15 +139,15 @@ def plot_errors(train_errors, val_errors):
     f.savefig(ERRORS_PLOT_IMAGE_NAME)
 
 
-def train_model(X_modified, Y_modified, load_checkpoint=False):
+def train_model(x_modified, y_modified, load_checkpoint=False):
 
     # defining the LSTM model
     model = Sequential()
-    model.add(LSTM(NR_UNITS, input_shape=(X_modified.shape[1], X_modified.shape[2]), return_sequences=True))
+    model.add(LSTM(NR_UNITS, input_shape=(x_modified.shape[1], x_modified.shape[2]), return_sequences=True))
     model.add(Dropout(DROPOUT_RATE))
     model.add(LSTM(NR_UNITS))
     model.add(Dropout(DROPOUT_RATE))
-    model.add(Dense(Y_modified.shape[1], activation='softmax'))
+    model.add(Dense(y_modified.shape[1], activation='softmax'))
 
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
@@ -166,7 +163,7 @@ def train_model(X_modified, Y_modified, load_checkpoint=False):
     early_stop = EarlyStopping(monitor='val_loss', patience=10)
 
     # fitting the model
-    history = model.fit(X_modified, Y_modified, epochs=EPOCH_NUMBER, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, callbacks=[checkpoint, early_stop])
+    history = model.fit(x_modified, y_modified, epochs=EPOCH_NUMBER, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, callbacks=[checkpoint, early_stop])
 
     save_model(FILE_MODEL_NAME, model)
 

@@ -42,13 +42,18 @@ def tweet(api, text):
         print("Error during tweet")
 
 
-def generate_and_tweet(api):
+def generate():
     filename = content_creator_model.FILE_MODEL_NAME
     model = content_creator_model.load_model(filename)
     # 280 is the max tweet character number
     text = content_creator_model.generate_content(model, nr_chars=280)
 
-    print(text)
+    print(f"Text: {text}")
+    return text
+
+
+def generate_and_tweet(api):
+    text = generate()
     tweet(api, text)
 
 
@@ -62,8 +67,8 @@ auth.set_access_token(config["access_token"], config["access_token_secret"])
 
 api = tweepy.API(auth)
 
-# unique_chars, int_to_char, char_to_int, X, Y, X_modified, Y_modified = content_creator_model.load_data()
-# content_creator_model.train_model(X_modified, Y_modified)
+# unique_chars, int_to_char, char_to_int, X, Y, x_modified, y_modified = content_creator_model.load_data()
+# content_creator_model.train_model(x_modified, y_modified)
 
 
 
