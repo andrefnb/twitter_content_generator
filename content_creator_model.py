@@ -23,7 +23,10 @@ CHECKPOINT_TO_IMPORT = f"{CHECKPOINT_DIR}/ckpt_1"
 # Training variables
 NR_OF_TRAINING_CHARACTERS = 1000#500000
 NR_UNITS = 300
+DROPOUT_RATE = 0.2
 EPOCH_NUMBER = 5
+BATCH_SIZE = 16
+VALIDATION_SPLIT = 0.33
 
 
 def save_model(filename, model):
@@ -144,9 +147,9 @@ def train_model(X_modified, Y_modified, load_checkpoint=False):
     # defining the LSTM model
     model = Sequential()
     model.add(LSTM(NR_UNITS, input_shape=(X_modified.shape[1], X_modified.shape[2]), return_sequences=True))
-    model.add(Dropout(0.2))
+    model.add(Dropout(DROPOUT_RATE))
     model.add(LSTM(NR_UNITS))
-    model.add(Dropout(0.2))
+    model.add(Dropout(DROPOUT_RATE))
     model.add(Dense(Y_modified.shape[1], activation='softmax'))
 
     model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -162,13 +165,10 @@ def train_model(X_modified, Y_modified, load_checkpoint=False):
     # Early Stopping
     early_stop = EarlyStopping(monitor='val_loss', patience=10)
 
-    callbacks_list = [checkpoint, early_stop]
-
     # fitting the model
-    history = model.fit(X_modified, Y_modified, epochs=EPOCH_NUMBER, batch_size=16, validation_split=0.33, callbacks=callbacks_list)
+    history = model.fit(X_modified, Y_modified, epochs=EPOCH_NUMBER, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, callbacks=[checkpoint, early_stop])
 
-    filename = FILE_MODEL_NAME
-    save_model(filename, model)
+    save_model(FILE_MODEL_NAME, model)
 
     # Get history losses and plot errors
     train_errors, val_errors = get_history_errors(history)
