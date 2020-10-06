@@ -15,7 +15,7 @@ DATA_DIR = "data"
 CHECKPOINT_DIR = f"{DATA_DIR}/training_checkpoints"
 # File names
 TEST_FILE_NAME = "the_way_of_kings"
-FILE_MODEL_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_model_1.sav"
+FILE_MODEL_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_model.sav"
 DATA_FILE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}.txt"
 TWEETS_FILE_NAME = f"{DATA_DIR}/tweets_storage.txt"
 ERRORS_PLOT_IMAGE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_errors.jpg"
@@ -24,7 +24,7 @@ CHECKPOINT_TO_IMPORT = f"{CHECKPOINT_DIR}/ckpt_1"
 NR_OF_TRAINING_CHARACTERS = 500000
 NR_UNITS = 256
 DROPOUT_RATE = 0.2
-EPOCH_NUMBER = 50
+EPOCH_NUMBER = 64
 BATCH_SIZE = 64
 VALIDATION_SPLIT = 0.33
 LOADING_SEQUENCE_LENGTH = 100
@@ -90,8 +90,7 @@ def generate_content(model, nr_chars):
 
     unique_chars, int_to_char, char_to_int, dataX, dataY, x_modified, y_modified = load_data()
 
-    # picking a random seed
-    # pick a random seed
+    # Pick a random seed
     start = np.random.randint(0, len(dataX) - 1)
     content_indices = dataX[start]
     content = ""
@@ -162,9 +161,10 @@ def train_model(x_modified, y_modified, load_checkpoint=False):
     # Early Stopping
     early_stop = EarlyStopping(monitor='val_loss', patience=10)
 
-    # fitting the model
+    # Fitting the model
     history = model.fit(x_modified, y_modified, epochs=EPOCH_NUMBER, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, callbacks=[checkpoint, early_stop])
 
+    # Save latest model
     save_model(FILE_MODEL_NAME, model)
 
     # Get history losses and plot errors
