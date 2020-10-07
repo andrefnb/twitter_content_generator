@@ -26,11 +26,11 @@ def train_model():
     # Train model
     print("Loading data")
     unique_chars, int_to_char, char_to_int, X, Y, x_modified, y_modified = content_creator_model.load_data()
-    #print("Training began")
-    #content_creator_model.train_model(x_modified, y_modified, load_checkpoint = False)
+    print("Training began")
+    content_creator_model.train_model(x_modified, y_modified, load_checkpoint = False)
 
     # testing
-    text = twitter_functions.generate()
+    #text = twitter_functions.generate()
 
 
 schedule.every(1).minute.do(tweet)
