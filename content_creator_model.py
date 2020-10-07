@@ -156,10 +156,10 @@ def train_model(x_modified, y_modified, load_checkpoint=False):
 
     # Checkpointing
     checkpoint_prefix = os.path.join(CHECKPOINT_DIR, "ckpt_{epoch}")
-    checkpoint = ModelCheckpoint(checkpoint_prefix, monitor='val_loss', verbose=1, save_best_only=True, mode='max', save_weights_only=False)
+    checkpoint = ModelCheckpoint(checkpoint_prefix, monitor='loss', verbose=1, save_best_only=True, mode='max', save_weights_only=False)
 
     # Early Stopping
-    early_stop = EarlyStopping(monitor='val_loss', patience=10)
+    early_stop = EarlyStopping(monitor='loss', patience=10)
 
     # Fitting the model
     history = model.fit(x_modified, y_modified, epochs=EPOCH_NUMBER, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, callbacks=[checkpoint, early_stop])
