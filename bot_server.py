@@ -43,16 +43,16 @@ schedule.every(1).minute.do(get_tweets)
 # schedule.every(1).minutes.do(job)
 
 if TESTING:
+    print(tf.test.is_gpu_available())
+    print(tf.config.list_physical_devices('GPU'))
 
     # TEST
     #api = twitter_functions.authenticate()
     #twitter_functions.generate_and_tweet(api)
-
+    twitter_functions.generate()
 
     # new
-    print(tf.test.is_gpu_available())
-    print(tf.config.list_physical_devices('GPU'))
-    train_model()
+    #train_model()
 
 
 else:

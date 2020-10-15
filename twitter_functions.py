@@ -44,7 +44,7 @@ def tweet(api, text):
 
 def generate():
     filename = content_creator_model.FILE_MODEL_NAME
-    model = content_creator_model.load_model(filename)
+    model = content_creator_model.load_model_custom(filename)
     # 280 is the max tweet character number
     text = content_creator_model.generate_content(model, nr_chars=280)
 
@@ -74,7 +74,7 @@ api = tweepy.API(auth)
 
 
 # filename = content_creator_model.FILE_MODEL_NAME
-# model = content_creator_model.load_model(filename)
+# model = content_creator_model.load_model_custom(filename)
 # text = content_creator_model.generate_content(model, nr_chars = 280)
 #
 # tweet(api, text)

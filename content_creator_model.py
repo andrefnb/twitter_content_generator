@@ -2,14 +2,12 @@ import os
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
-from keras.models import Sequential, save_model, Model
+from keras.models import Sequential, model_from_json
 from keras.layers import Dense
 from keras.layers import Dropout
 from keras.layers import LSTM
 from keras.utils import np_utils
 from keras.callbacks import ModelCheckpoint, EarlyStopping
-import tensorflow as tf
-import tempfile
 
 # Fix memory error
 from tensorflow.compat.v1 import ConfigProto
@@ -18,59 +16,49 @@ config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
 
-# Hotfix function for pickle error
-def make_keras_picklable():
-    def __getstate__(self):
-        model_str = ""
-        with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
-            save_model(self, fd.name)
-            model_str = fd.read()
-        d = {'model_str': model_str}
-        return d
-
-    def __setstate__(self, state):
-        with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
-            fd.write(state['model_str'])
-            fd.flush()
-            model = load_model(fd.name)
-        self.__dict__ = model.__dict__
-
-
-    cls = Model
-    cls.__getstate__ = __getstate__
-    cls.__setstate__ = __setstate__
-# Run the function
-make_keras_picklable()
 
 # Directories
 DATA_DIR = "data"
 CHECKPOINT_DIR = f"{DATA_DIR}/training_checkpoints"
 # File names
 TEST_FILE_NAME = "the_way_of_kings"
-FILE_MODEL_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_model.sav"
+FILE_MODEL_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_model"
 DATA_FILE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}.txt"
 TWEETS_FILE_NAME = f"{DATA_DIR}/tweets_storage.txt"
 ERRORS_PLOT_IMAGE_NAME = f"{DATA_DIR}/{TEST_FILE_NAME}_errors.jpg"
 CHECKPOINT_TO_IMPORT = f"{CHECKPOINT_DIR}/ckpt_1"
 # Training variables
-NR_OF_TRAINING_CHARACTERS = 500000
+NR_OF_TRAINING_CHARACTERS = 500#500000
 NR_UNITS = 256
 DROPOUT_RATE = 0.2
-EPOCH_NUMBER = 50
+EPOCH_NUMBER = 1#50
 BATCH_SIZE = 64
 VALIDATION_SPLIT = 0.33
 LOADING_SEQUENCE_LENGTH = 100
 
 
 def save_model_custom(filename, model):
-    pickle.dump(model, open(filename, 'wb'))
+    #pickle.dump(model, open(filename, 'wb'))
+    # JSON model serialization
+    model_json = model.to_json()
+    with open(f"{filename}.json", "w") as json_file:
+        json_file.write(model_json)
+    # Weight serialization
+    model.save_weights(f"{filename}.h5")
 
-
-def load_model(filename):
+def load_model_custom(filename):
     # load the model from disk
-    loaded_model = pickle.load(open(filename, 'rb'))
-    return loaded_model
+    #print(filename)
+    #loaded_model = pickle.load(open(filename, 'rb'))
 
+    # Load json and create model
+    json_file = open(f"{filename}.json", 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    # load weights into new model
+    loaded_model.load_weights(f"{filename}.h5")
+    return loaded_model
 
 def load_data():
 
