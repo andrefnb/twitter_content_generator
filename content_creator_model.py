@@ -2,13 +2,45 @@ import os
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
-from keras.models import Sequential
+from keras.models import Sequential, save_model, Model
 from keras.layers import Dense
 from keras.layers import Dropout
 from keras.layers import LSTM
 from keras.utils import np_utils
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 import tensorflow as tf
+import tempfile
+
+# Fix memory error
+from tensorflow.compat.v1 import ConfigProto
+from tensorflow.compat.v1 import InteractiveSession
+config = ConfigProto()
+config.gpu_options.allow_growth = True
+session = InteractiveSession(config=config)
+
+# Hotfix function for pickle error
+def make_keras_picklable():
+    def __getstate__(self):
+        model_str = ""
+        with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
+            save_model(self, fd.name)
+            model_str = fd.read()
+        d = {'model_str': model_str}
+        return d
+
+    def __setstate__(self, state):
+        with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
+            fd.write(state['model_str'])
+            fd.flush()
+            model = load_model(fd.name)
+        self.__dict__ = model.__dict__
+
+
+    cls = Model
+    cls.__getstate__ = __getstate__
+    cls.__setstate__ = __setstate__
+# Run the function
+make_keras_picklable()
 
 # Directories
 DATA_DIR = "data"
@@ -24,13 +56,13 @@ CHECKPOINT_TO_IMPORT = f"{CHECKPOINT_DIR}/ckpt_1"
 NR_OF_TRAINING_CHARACTERS = 500000
 NR_UNITS = 256
 DROPOUT_RATE = 0.2
-EPOCH_NUMBER = 64
+EPOCH_NUMBER = 50
 BATCH_SIZE = 64
 VALIDATION_SPLIT = 0.33
 LOADING_SEQUENCE_LENGTH = 100
 
 
-def save_model(filename, model):
+def save_model_custom(filename, model):
     pickle.dump(model, open(filename, 'wb'))
 
 
@@ -165,10 +197,11 @@ def train_model(x_modified, y_modified, load_checkpoint=False):
     history = model.fit(x_modified, y_modified, epochs=EPOCH_NUMBER, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT, callbacks=[checkpoint, early_stop])
 
     # Save latest model
-    save_model(FILE_MODEL_NAME, model)
+    save_model_custom(FILE_MODEL_NAME, model)
 
     # Get history losses and plot errors
     train_errors, val_errors = get_history_errors(history)
     # Plot errors
     plot_errors(train_errors, val_errors)
+
 
